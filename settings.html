@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>UwU Browser - Settings</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0d0d0d;
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px;
+      gap: 32px;
+    }
+    h1 {
+      font-size: 36px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #e94560, #0f3460);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .section {
+      background: #1a1a2e;
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 560px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .section h2 { font-size: 18px; color: #e94560; margin-bottom: 4px; }
+    label { font-size: 14px; color: #aaa; margin-bottom: 4px; display: block; }
+    select, input[type="text"] {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: none;
+      background: #0f3460;
+      color: white;
+      font-size: 14px;
+      outline: none;
+      transition: box-shadow 0.2s;
+    }
+    select:focus, input[type="text"]:focus { box-shadow: 0 0 0 2px #e94560; }
+    button {
+      padding: 10px 24px;
+      border-radius: 10px;
+      border: none;
+      background: #e94560;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      align-self: flex-start;
+      transition: background 0.2s;
+    }
+    button:hover { background: #c73652; }
+    #saved-msg { font-size: 13px; color: #e94560; display: none; }
+  </style>
+</head>
+<body>
+  <h1>Settings :3</h1>
+
+  <div class="section">
+    <h2>Search Engine</h2>
+    <label>Default search engine</label>
+    <select id="search-engine">
+      <option value="https://www.google.com/search?q=">Google</option>
+      <option value="https://www.bing.com/search?q=">Bing</option>
+      <option value="https://search.yahoo.com/search?p=">Yahoo</option>
+      <option value="https://duckduckgo.com/?q=">DuckDuckGo</option>
+      <option value="https://search.brave.com/search?q=">Brave Search</option>
+    </select>
+  </div>
+
+  <div class="section">
+    <h2>Homepage</h2>
+    <label>Homepage URL (leave blank for UwU start page)</label>
+    <input type="text" id="homepage" placeholder="https://example.com" />
+  </div>
+
+  <button id="save-btn">Save Settings</button>
+  <span id="saved-msg">Settings saved! :3</span>
+
+  <script>
+  const { ipcRenderer } = require('electron')
+  const searchEngine = document.getElementById('search-engine')
+  const homepage = document.getElementById('homepage')
+  const saveBtn = document.getElementById('save-btn')
+  const savedMsg = document.getElementById('saved-msg')
+
+  ipcRenderer.invoke('get-config').then(config => {
+    if (config.searchEngine) searchEngine.value = config.searchEngine
+    if (config.homepage) homepage.value = config.homepage
+  })
+
+  saveBtn.addEventListener('click', async () => {
+    await ipcRenderer.invoke('save-config', {
+      searchEngine: searchEngine.value,
+      homepage: homepage.value
+    })
+    savedMsg.style.display = 'block'
+    setTimeout(() => savedMsg.style.display = 'none', 2000)
+  })
+</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+{
+  "name": "vibe-browser",
+  "version": "1.0.0",
+  "description": "A sleek personal browser :3",
+  "main": "index.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "keywords": [],
+  "author": {
+  "name": "Xi3 Studios",
+  "email": "mikorichard822@gmail.com"
+},
+"homepage": "https://github.com/richard/vibe-browser",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^40.8.0",
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "com.vibe.browser",
+    "productName": "Vibe Browser",
+    "icon": "icon.png",
+    "linux": {
+      "target": ["AppImage", "deb", "rpm"],
+      "category": "Network"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "icon256.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "files": [
+      "index.js",
+      "index.html",
+      "startpage.html",
+      "settings.html",
+      "downloads.html",
+      "bookmarks.html",
+      "preload.js",
+      "icon.png",
+      "icon256.png",
+      "uwu-config.json"
+    ]
+  }
+}

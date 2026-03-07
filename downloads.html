@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Vibe Browser - Downloads</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0d0d0d;
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 24px;
+      gap: 24px;
+    }
+    h1 {
+      font-size: 36px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #e94560, #0f3460);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    #downloads-list {
+      width: 100%;
+      max-width: 700px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .download-item {
+      background: #1a1a2e;
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .download-name {
+      font-size: 15px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .download-info {
+      font-size: 12px;
+      color: #888;
+    }
+    .download-bar-bg {
+      width: 100%;
+      height: 6px;
+      background: #0f3460;
+      border-radius: 4px;
+    }
+    .download-bar {
+      height: 6px;
+      background: #e94560;
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+    .download-actions {
+      display: flex;
+      gap: 8px;
+    }
+    button {
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: none;
+      background: #0f3460;
+      color: white;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    button:hover { background: #e94560; }
+    #empty {
+      color: #555;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Downloads :3</h1>
+  <div id="downloads-list">
+    <span id="empty">No downloads yet :3</span>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron')
+    const list = document.getElementById('downloads-list')
+    const empty = document.getElementById('empty')
+    const items = {}
+
+    function updateEmpty() {
+      empty.style.display = Object.keys(items).length === 0 ? 'block' : 'none'
+    }
+
+    ipcRenderer.on('download-started', (e, { id, filename, savePath }) => {
+      empty.style.display = 'none'
+      const div = document.createElement('div')
+      div.className = 'download-item'
+      div.id = 'dl-' + id
+      div.innerHTML = `
+        <div class="download-name">${filename}</div>
+        <div class="download-info" id="info-${id}">Starting...</div>
+        <div class="download-bar-bg"><div class="download-bar" id="bar-${id}" style="width:0%"></div></div>
+        <div class="download-actions">
+            <button onclick="ipcRenderer.send('open-file', '${savePath}')">Open</button>
+            <button onclick="ipcRenderer.send('show-file', '${savePath}')">Show in folder</button>
+            <button id="cancel-${id}" onclick="ipcRenderer.send('cancel-download', ${id})">Cancel</button>
+        </div>
+      `
+      list.appendChild(div)
+      items[id] = true
+      updateEmpty()
+    })
+
+    ipcRenderer.on('download-progress', (e, { id, percent, received, total }) => {
+      const bar = document.getElementById('bar-' + id)
+      const info = document.getElementById('info-' + id)
+      if (bar) bar.style.width = percent + '%'
+      if (info) info.textContent = `${(received / 1024 / 1024).toFixed(1)} MB / ${(total / 1024 / 1024).toFixed(1)} MB`
+    })
+
+    ipcRenderer.on('download-done', (e, { id, state }) => {
+      const bar = document.getElementById('bar-' + id)
+      const info = document.getElementById('info-' + id)
+      const cancelBtn = document.getElementById('cancel-' + id)
+      if (cancelBtn) cancelBtn.style.display = 'none'
+      if (bar) bar.style.width = '100%'
+      if (bar) bar.style.background = state === 'completed' ? '#2ecc71' : '#e94560'
+      if (info) info.textContent = state === 'completed' ? 'Completed :3' : 'Failed or cancelled'
+    })
+  </script>
+</body>
+</html>

@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Vibe :3</title>
+  <script>
+    const fs = require('fs')
+    const path = require('path')
+    const { ipcRenderer } = require('electron')
+
+    function getConfig() {
+      try {
+        const configPath = path.join(__dirname, 'uwu-config.json')
+        if (fs.existsSync(configPath)) {
+          return JSON.parse(fs.readFileSync(configPath, 'utf8'))
+        }
+      } catch(e) {
+        console.log('Config error:', e.message)
+      }
+      return { searchEngine: 'https://www.google.com/search?q=', homepage: '' }
+    }
+  </script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0d0d0d; color: white; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+    #tab-bar {
+      display: flex;
+      align-items: center;
+      background: #111;
+      padding: 6px 6px 0;
+      gap: 4px;
+      overflow-x: auto;
+      min-height: 40px;
+    }
+    .tab {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: #1a1a2e;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      font-size: 13px;
+      max-width: 200px;
+      min-width: 120px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: background 0.2s;
+    }
+    .tab.active { background: #16213e; border-bottom: 2px solid #e94560; }
+    .tab:hover { background: #16213e; }
+    .tab-title { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+    .tab-close { font-size: 16px; color: #888; cursor: pointer; padding: 0 2px; }
+    .tab-close:hover { color: #e94560; }
+    #new-tab-btn {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 22px;
+      cursor: pointer;
+      padding: 0 8px;
+      border-radius: 8px;
+    }
+    #new-tab-btn:hover { color: white; background: #1a1a2e; }
+
+    #toolbar {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      background: #16213e;
+      gap: 8px;
+    }
+    button.nav-btn {
+      background: #0f3460;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button.nav-btn:hover { background: #e94560; }
+    #url-bar {
+      flex: 1;
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: none;
+      background: #0f3460;
+      color: white;
+      font-size: 14px;
+    }
+    #url-bar:focus { outline: 2px solid #e94560; }
+
+    #webview-container { flex: 1; position: relative; }
+    webview {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: none;
+    }
+    webview.active { display: flex; }
+  </style>
+</head>
+<body>
+
+  <div id="tab-bar">
+    <button id="new-tab-btn">+</button>
+  </div>
+
+  <div id="toolbar">
+    <button class="nav-btn" id="back">&#8592;</button>
+    <button class="nav-btn" id="forward">&#8594;</button>
+    <button class="nav-btn" id="refresh">&#8635;</button>
+    <input id="url-bar" type="text" placeholder="Enter a URL... uwu :3" />
+    <button class="nav-btn" id="go">Go</button>
+    <button class="nav-btn" id="bookmark-btn">🔖</button>
+    <button class="nav-btn" id="downloads-btn">⬇️</button>
+    <button class="nav-btn" id="settings-btn">⚙️</button>
+  </div>
+
+  <div id="webview-container"></div>
+
+  <script>
+    let tabs = []
+    let activeTab = null
+    let tabCounter = 0
+
+    const tabBar = document.getElementById('tab-bar')
+    const newTabBtn = document.getElementById('new-tab-btn')
+    const urlBar = document.getElementById('url-bar')
+    const container = document.getElementById('webview-container')
+
+    function createTab(url) {
+      const id = tabCounter++
+      const config = getConfig()
+      const startUrl = url || config.homepage || `file://${__dirname}/startpage.html`
+
+      const webview = document.createElement('webview')
+      webview.src = startUrl
+      container.appendChild(webview)
+
+      const tab = document.createElement('div')
+      tab.className = 'tab'
+      tab.dataset.id = id
+      tab.innerHTML = `<span class="tab-title">New Tab</span><span class="tab-close">×</span>`
+      tabBar.insertBefore(tab, newTabBtn)
+
+      const tabData = { id, tab, webview, url: startUrl }
+      tabs.push(tabData)
+
+      tab.addEventListener('click', (e) => {
+        if (e.target.classList.contains('tab-close')) closeTab(id)
+        else switchTab(id)
+      })
+
+      webview.addEventListener('did-navigate', (e) => {
+        tabData.url = e.url
+        if (activeTab && activeTab.id === id) urlBar.value = e.url
+      })
+
+      webview.addEventListener('will-navigate', (e) => {
+        if (e.url.startsWith('search:')) {
+            e.preventDefault()
+            const query = e.url.replace('search:', '')
+            const config = getConfig()
+            const engine = config.searchEngine || 'https://www.google.com/search?q='
+            const url = engine + encodeURIComponent(query)
+            webview.src = url
+            tabData.url = url
+            if (activeTab && activeTab.id === id) urlBar.value = url
+        }
+      })
+
+      webview.addEventListener('page-title-updated', (e) => {
+        tab.querySelector('.tab-title').textContent = e.title
+      })
+
+      switchTab(id)
+      return tabData
+    }
+
+    function switchTab(id) {
+      tabs.forEach(t => {
+        t.webview.classList.remove('active')
+        t.tab.classList.remove('active')
+      })
+      const tabData = tabs.find(t => t.id === id)
+      if (tabData) {
+        tabData.webview.classList.add('active')
+        tabData.tab.classList.add('active')
+        urlBar.value = tabData.url || ''
+        activeTab = tabData
+      }
+    }
+
+    function closeTab(id) {
+      const index = tabs.findIndex(t => t.id === id)
+      if (index === -1) return
+      const tabData = tabs[index]
+      tabData.webview.remove()
+      tabData.tab.remove()
+      tabs.splice(index, 1)
+      if (tabs.length === 0) createTab()
+      else switchTab(tabs[Math.max(0, index - 1)].id)
+    }
+
+    function navigate() {
+      if (!activeTab) return
+      const config = getConfig()
+      let url = urlBar.value.trim()
+      if (!url) return
+      if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('file://')) {
+        // use as is
+      } else if (url.includes('.') && !url.includes(' ')) {
+        url = 'https://' + url
+      } else {
+        const engine = config.searchEngine || 'https://www.google.com/search?q='
+        url = engine + encodeURIComponent(url)
+      }
+      activeTab.webview.src = url
+      activeTab.url = url
+    }
+
+    document.getElementById('go').addEventListener('click', navigate)
+    urlBar.addEventListener('keydown', (e) => { if (e.key === 'Enter') navigate() })
+    document.getElementById('back').addEventListener('click', () => activeTab?.webview.goBack())
+    document.getElementById('forward').addEventListener('click', () => activeTab?.webview.goForward())
+    document.getElementById('refresh').addEventListener('click', () => activeTab?.webview.reload())
+    document.getElementById('settings-btn').addEventListener('click', () => ipcRenderer.send('open-settings'))
+    document.getElementById('downloads-btn').addEventListener('click', () => ipcRenderer.send('open-downloads'))
+    document.getElementById('bookmark-btn').addEventListener('click', () => {
+        const title = activeTab?.webview.getTitle() || activeTab?.url
+        const url = activeTab?.url
+        if (url && !url.startsWith('file://')) {
+            ipcRenderer.send('add-bookmark', { title, url })
+            // Flash the button to confirm :3
+            const btn = document.getElementById('bookmark-btn')
+            btn.style.background = '#e94560'
+            setTimeout(() => btn.style.background = '', 500)
+        }
+    })
+
+document.getElementById('downloads-btn').addEventListener('click', () => ipcRenderer.send('open-downloads'))
+    newTabBtn.addEventListener('click', () => createTab())
+
+    ipcRenderer.on('open-new-tab', (e, url) => createTab(url))
+    ipcRenderer.on('reload-tab', () => activeTab?.webview.reload())
+    ipcRenderer.on('go-back', () => activeTab?.webview.goBack())
+    ipcRenderer.on('go-forward', () => activeTab?.webview.goForward())
+    ipcRenderer.on('open-search', (e, text) => {
+      const config = getConfig()
+      const engine = config.searchEngine || 'https://www.google.com/search?q='
+      createTab(engine + encodeURIComponent(text))
+    })
+    ipcRenderer.on('inspect-element', (e, { x, y }) => {
+        activeTab?.webview.inspectElement(x, y)
+    })
+    ipcRenderer.on('save-page', () => {
+        activeTab?.webview.downloadURL(activeTab.url)
+    })
+    ipcRenderer.on('print-page', () => {
+        activeTab?.webview.print()
+    })
+
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.key === 't') { e.preventDefault(); createTab() }
+        if (e.ctrlKey && e.key === 'w') { e.preventDefault(); if (activeTab) closeTab(activeTab.id) }
+        if (e.ctrlKey && e.key === 'r') { e.preventDefault(); activeTab?.webview.reload() }
+        if (e.ctrlKey && e.key === 'l') { e.preventDefault(); urlBar.focus(); urlBar.select() }
+        if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); activeTab?.webview.goBack() }
+        if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); activeTab?.webview.goForward() }
+        if (e.ctrlKey && e.shiftKey && e.key === 'I') { e.preventDefault(); activeTab?.webview.openDevTools() }
+    })
+
+    createTab()
+  </script>
+</body>
+</html>

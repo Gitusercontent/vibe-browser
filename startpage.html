@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vibe :3</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0d0d0d;
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      gap: 32px;
+    }
+    #logo-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    #logo {
+      width: 180px;
+      height: 180px;
+      border-radius: 24px;
+      object-fit: cover;
+      box-shadow: 0 0 40px rgba(233, 69, 96, 0.4);
+      display: none;
+    }
+    h1 {
+      font-size: 48px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #e94560, #0f3460);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 2px;
+    }
+    #search-container {
+      display: flex;
+      gap: 8px;
+      width: 560px;
+    }
+    #search-bar {
+      flex: 1;
+      padding: 14px 20px;
+      border-radius: 12px;
+      border: none;
+      background: #1a1a2e;
+      color: white;
+      font-size: 16px;
+      outline: none;
+      transition: box-shadow 0.2s;
+    }
+    #search-bar:focus {
+      box-shadow: 0 0 0 2px #e94560;
+    }
+    #search-btn {
+      padding: 14px 24px;
+      border-radius: 12px;
+      border: none;
+      background: #e94560;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #search-btn:hover { background: #c73652; }
+    #status { font-size: 12px; color: #555; }
+  </style>
+</head>
+<body>
+  <div id="logo-container">
+    <img id="logo" alt="Vibe Browser Logo" src="icon256.png" />
+    <h1>Vibe :3</h1>
+  </div>
+
+  <div id="search-container">
+    <input id="search-bar" type="text" placeholder="Search the web... :3" />
+    <button id="search-btn">Search</button>
+  </div>
+
+  <span id="status"></span>
+
+  <script>
+    const logo = document.getElementById('logo')
+    logo.style.display = 'block'
+
+    // Search functionality
+    const searchBar = document.getElementById('search-bar')
+    const searchBtn = document.getElementById('search-btn')
+
+    function doSearch() {
+        const query = searchBar.value.trim()
+        if (!query) return
+        window.location.href = query.startsWith('http') ? query : 'search:' + query
+    }
+
+    searchBtn.addEventListener('click', doSearch)
+    searchBar.addEventListener('keydown', (e) => { if (e.key === 'Enter') doSearch() })
+  </script>
+</body>
+</html>
