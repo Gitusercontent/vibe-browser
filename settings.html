@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>UwU Browser - Settings</title>
+  <title>Vibe :3 - Settings</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -64,6 +64,19 @@
 <body>
   <h1>Settings :3</h1>
 
+<div class="section">
+  <h2>About</h2>
+  <div style="display: flex; align-items: center; gap: 16px;">
+    <img src="icon256.png" style="width: 64px; height: 64px; border-radius: 12px;" />
+    <div>
+      <div style="font-size: 18px; font-weight: 700;">Vibe Browser</div>
+      <div style="font-size: 13px; color: #888;">Version 1.0.0</div>
+      <div style="font-size: 13px; color: #888;">Built with Electron & vibe coding :3</div>
+      <a href="#" style="font-size: 13px; color: #e94560; text-decoration: none;" onclick="require('electron').shell.openExternal('https://github.com/Gitusercontent/vibe-browser')">GitHub</a>
+    </div>
+  </div>
+</div>
+
   <div class="section">
     <h2>Search Engine</h2>
     <label>Default search engine</label>
@@ -73,6 +86,10 @@
       <option value="https://search.yahoo.com/search?p=">Yahoo</option>
       <option value="https://duckduckgo.com/?q=">DuckDuckGo</option>
       <option value="https://search.brave.com/search?q=">Brave Search</option>
+      <option value="https://www.ecosia.org/search?q=">Ecosia 🌳</option>
+      <option value="https://yep.com/web?q=">Yep</option>
+      <option value="https://wiby.me/?q=">Wiby</option>
+      <option value="https://search.marginalia.nu/search?query=">Marginalia</option>
     </select>
   </div>
 

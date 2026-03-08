@@ -7,6 +7,7 @@ const configPath = path.join(__dirname, 'uwu-config.json')
 let downloadWin = null
 let downloadCounter = 0
 const activeDownloads = {}
+let mainWin = null
 
 function loadConfig() {
   try {
@@ -125,13 +126,31 @@ function createWindow() {
       webSecurity: true
     }
   })
+  mainWin = win
 
   win.loadFile('index.html')
+
   win.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
     details.requestHeaders['User-Agent'] = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     callback({ requestHeaders: details.requestHeaders })
   })
-  win.webContents.setWindowOpenHandler(({ url }) => {
+
+  win.webContents.setWindowOpenHandler(({ url, features }) => {
+    const isPopup = features.includes('width') && features.includes('height')
+    if (isPopup) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 500,
+          height: 600,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            session: win.webContents.session
+          }
+        }
+      }
+    }
     win.webContents.send('open-new-tab', url)
     return { action: 'deny' }
   })
@@ -172,7 +191,7 @@ function createWindow() {
   })
 
   win.webContents.on('context-menu', (event, params) => {
-    buildContextMenu(params, win).popup()
+    event.preventDefault()
   })
 
   app.on('web-contents-created', (event, contents) => {
@@ -180,18 +199,26 @@ function createWindow() {
       contents.on('context-menu', (e, params) => {
         buildContextMenu(params, win).popup()
       })
-    }
-    app.on('web-contents-created', (event, contents) => {
-        if (contents.getType() === 'webview') {
-          contents.on('context-menu', (e, params) => {
-            buildContextMenu(params, win).popup()
-          })
-          contents.setWindowOpenHandler(({ url }) => {
-            win.webContents.send('open-new-tab', url)
-            return { action: 'deny' }
-          })
+      contents.setWindowOpenHandler(({ url, features }) => {
+        const isPopup = features.includes('width') && features.includes('height')
+        if (isPopup) {
+          return {
+            action: 'allow',
+            overrideBrowserWindowOptions: {
+              width: 500,
+              height: 600,
+              webPreferences: {
+                nodeIntegration: false,
+                contextIsolation: true,
+                session: win.webContents.session
+              }
+            }
+          }
         }
-    })
+        win.webContents.send('open-new-tab', url)
+        return { action: 'deny' }
+      })
+    }
   })
 }
 
@@ -232,12 +259,51 @@ ipcMain.on('add-bookmark', (e, { title, url }) => {
 })
 
 ipcMain.on('open-bookmark', (e, url) => {
-  BrowserWindow.getAllWindows()[0].webContents.send('open-new-tab', url)
+  if (mainWin) mainWin.webContents.send('open-new-tab', url)
 })
 
+ipcMain.on('open-history', () => {
+  const historyWin = new BrowserWindow({
+    width: 800,
+    height: 600,
+    title: 'History',
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
+  })
+  historyWin.loadFile('history.html')
+  historyWin.setMenu(null)
+})
+
+ipcMain.on('open-history-url', (e, url) => {
+  if (mainWin) mainWin.webContents.send('open-new-tab', url)
+})
+
+ipcMain.on('add-history', (e, { title, url }) => {
+  const historyPath = path.join(__dirname, 'history.json')
+  let history = []
+  try {
+    if (fs.existsSync(historyPath)) history = JSON.parse(fs.readFileSync(historyPath, 'utf8'))
+  } catch {}
+  history.push({ title, url, timestamp: Date.now() })
+  if (history.length > 1000) history = history.slice(-1000)
+  fs.writeFileSync(historyPath, JSON.stringify(history, null, 2))
+})
+
+//app.whenReady().then(() => {
+  //createWindow()
+  //app.setDesktopFileName('vibe-browser')
+//})
+
+const { protocol } = require('electron')
+
 app.whenReady().then(() => {
+  protocol.registerStringProtocol('getconfig', (request, callback) => {
+    const config = loadConfig()
+    callback(JSON.stringify(config))
+  })
   createWindow()
-  app.setDesktopFileName('vibe-browser')
 })
 
 app.on('window-all-closed', () => {

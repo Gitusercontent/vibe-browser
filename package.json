@@ -9,10 +9,10 @@
   },
   "keywords": [],
   "author": {
-  "name": "Xi3 Studios",
-  "email": "mikorichard822@gmail.com"
-},
-"homepage": "https://github.com/richard/vibe-browser",
+    "name": "Xi3 Studios",
+    "email": "mikorichard822@gmail.com"
+  },
+  "homepage": "https://github.com/richard/vibe-browser",
   "license": "ISC",
   "devDependencies": {
     "electron": "^40.8.0",
@@ -23,23 +23,33 @@
     "productName": "Vibe Browser",
     "icon": "icon.png",
     "linux": {
-      "target": ["AppImage", "deb", "rpm"],
+      "target": [
+        "AppImage",
+        "deb",
+        "rpm"
+      ],
       "category": "Network"
     },
     "win": {
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
-      "icon": "icon256.png"
+      "icon": "icon.ico",
+      "executableName": "VibeBrowser"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "shortcutName": "Vibe Browser",
+      "installerIcon": "icon.ico",
+      "artifactName": "VibeBrowser-Setup-${version}.exe"
     },
     "files": [
       "index.js",
@@ -55,3 +65,4 @@
     ]
   }
 }
+

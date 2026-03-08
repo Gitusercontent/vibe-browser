@@ -101,6 +101,28 @@
       display: none;
     }
     webview.active { display: flex; }
+
+    .tab-mute {
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.6;
+}
+.tab-mute:hover { opacity: 1; }
+
+.tab-loading {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #0f3460;
+  border-top: 2px solid #e94560;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: none;
+  flex-shrink: 0;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
   </style>
 </head>
 <body>
@@ -116,11 +138,19 @@
     <input id="url-bar" type="text" placeholder="Enter a URL... uwu :3" />
     <button class="nav-btn" id="go">Go</button>
     <button class="nav-btn" id="bookmark-btn">🔖</button>
+    <button class="nav-btn" id="bookmarks-btn">📚</button>
+    <button class="nav-btn" id="history-btn">🕐</button>
     <button class="nav-btn" id="downloads-btn">⬇️</button>
     <button class="nav-btn" id="settings-btn">⚙️</button>
   </div>
 
-  <div id="webview-container"></div>
+  <div id="find-bar" style="position:fixed; bottom:0; right:0; background:#16213e; padding:8px 12px; border-radius:8px 0 0 0; align-items:center; gap:8px; z-index:9999; display:none;">
+  <input id="find-input" type="text" placeholder="Find in page... :3" style="padding:6px 10px; border-radius:6px; border:none; background:#0f3460; color:white; font-size:13px; outline:none; width:200px;"/>
+  <button class="nav-btn" id="find-prev">↑</button>
+  <button class="nav-btn" id="find-next">↓</button>
+  <button class="nav-btn" id="find-close">×</button>
+</div>
+<div id="webview-container"></div>
 
   <script>
     let tabs = []
@@ -135,16 +165,21 @@
     function createTab(url) {
       const id = tabCounter++
       const config = getConfig()
-      const startUrl = url || config.homepage || `file://${__dirname}/startpage.html`
-
+      let startUrl = url || config.homepage || null
+      if (!startUrl) {
+        const engine = encodeURIComponent(config.searchEngine || 'https://www.google.com/search?q=')
+        startUrl = `file://${__dirname}/startpage.html?engine=${engine}`
+      }
       const webview = document.createElement('webview')
       webview.src = startUrl
+      webview.setAttribute('partition', 'persist:main')
+      webview.setAttribute('allowpopups', '')
       container.appendChild(webview)
 
       const tab = document.createElement('div')
       tab.className = 'tab'
       tab.dataset.id = id
-      tab.innerHTML = `<span class="tab-title">New Tab</span><span class="tab-close">×</span>`
+      tab.innerHTML = `<div class="tab-loading"></div><img class="tab-favicon" src="" style="width:16px;height:16px;border-radius:3px;display:none;"/><span class="tab-title">New Tab</span><span class="tab-mute" title="Mute tab">🔊</span><span class="tab-close">×</span>`
       tabBar.insertBefore(tab, newTabBtn)
 
       const tabData = { id, tab, webview, url: startUrl }
@@ -158,23 +193,63 @@
       webview.addEventListener('did-navigate', (e) => {
         tabData.url = e.url
         if (activeTab && activeTab.id === id) urlBar.value = e.url
+        if (!e.url.startsWith('file://')) {
+          ipcRenderer.send('add-history', { title: webview.getTitle() || e.url, url: e.url })
+        }
       })
 
-      webview.addEventListener('will-navigate', (e) => {
+      webview.addEventListener('did-start-navigation', (e) => {
         if (e.url.startsWith('search:')) {
-            e.preventDefault()
-            const query = e.url.replace('search:', '')
-            const config = getConfig()
-            const engine = config.searchEngine || 'https://www.google.com/search?q='
-            const url = engine + encodeURIComponent(query)
-            webview.src = url
-            tabData.url = url
-            if (activeTab && activeTab.id === id) urlBar.value = url
+          const query = decodeURIComponent(e.url.replace('search:', ''))
+          const config = getConfig()
+          const engine = config.searchEngine || 'https://www.google.com/search?q='
+          const url = engine + encodeURIComponent(query)
+          webview.src = url
+          tabData.url = url
+          if (activeTab && activeTab.id === id) urlBar.value = url
+        }
+      })
+
+      webview.addEventListener('did-navigate-in-page', (e) => {
+        tabData.url = e.url
+        if (activeTab && activeTab.id === id) urlBar.value = e.url
+        if (!e.url.startsWith('file://')) {
+          ipcRenderer.send('add-history', { title: webview.getTitle() || e.url, url: e.url })
         }
       })
 
       webview.addEventListener('page-title-updated', (e) => {
         tab.querySelector('.tab-title').textContent = e.title
+      })
+
+      webview.addEventListener('page-favicon-updated', (e) => {
+        if (e.favicons && e.favicons.length > 0) {
+          const favicon = tab.querySelector('.tab-favicon')
+          favicon.src = e.favicons[0]
+          favicon.style.display = 'block'
+        }
+      })
+
+      webview.addEventListener('did-start-loading', () => {
+        const spinner = tab.querySelector('.tab-loading')
+        const favicon = tab.querySelector('.tab-favicon')
+        spinner.style.display = 'block'
+        favicon.style.display = 'none'
+      })
+
+      webview.addEventListener('did-stop-loading', () => {
+        const spinner = tab.querySelector('.tab-loading')
+        const favicon = tab.querySelector('.tab-favicon')
+        spinner.style.display = 'none'
+        if (favicon.src) favicon.style.display = 'block'
+      })
+
+      const muteBtn = tab.querySelector('.tab-mute')
+      muteBtn.addEventListener('click', (e) => {
+        e.stopPropagation()
+        const isMuted = webview.isAudioMuted()
+        webview.setAudioMuted(!isMuted)
+        muteBtn.textContent = isMuted ? '🔊' : '🔇'
       })
 
       switchTab(id)
@@ -241,6 +316,8 @@
             setTimeout(() => btn.style.background = '', 500)
         }
     })
+    document.getElementById('history-btn').addEventListener('click', () => ipcRenderer.send('open-history'))
+    document.getElementById('bookmarks-btn').addEventListener('click', () => ipcRenderer.send('open-bookmarks'))
 
 document.getElementById('downloads-btn').addEventListener('click', () => ipcRenderer.send('open-downloads'))
     newTabBtn.addEventListener('click', () => createTab())
@@ -272,9 +349,49 @@ document.getElementById('downloads-btn').addEventListener('click', () => ipcRend
         if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); activeTab?.webview.goBack() }
         if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); activeTab?.webview.goForward() }
         if (e.ctrlKey && e.shiftKey && e.key === 'I') { e.preventDefault(); activeTab?.webview.openDevTools() }
+        if (e.ctrlKey && e.key === 'f') {
+          e.preventDefault()
+          findBar.style.display = 'flex'
+          findInput.focus()
+          findInput.select()
+        }
     })
+    const findBar = document.getElementById('find-bar')
+const findInput = document.getElementById('find-input')
+
+document.getElementById('find-close').addEventListener('click', () => {
+  findBar.style.display = 'none'
+  activeTab?.webview.stopFindInPage('clearSelection')
+})
+
+document.getElementById('find-next').addEventListener('click', () => {
+  if (findInput.value) activeTab?.webview.findInPage(findInput.value)
+})
+
+document.getElementById('find-prev').addEventListener('click', () => {
+  if (findInput.value) activeTab?.webview.findInPage(findInput.value, { forward: false })
+})
+
+findInput.addEventListener('input', () => {
+  if (findInput.value) activeTab?.webview.findInPage(findInput.value)
+  else activeTab?.webview.stopFindInPage('clearSelection')
+})
+
+findInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    findBar.style.display = 'none'
+    activeTab?.webview.stopFindInPage('clearSelection')
+  }
+  if (e.key === 'Enter') activeTab?.webview.findInPage(findInput.value, { forward: !e.shiftKey })
+})
 
     createTab()
   </script>
+  <div id="find-bar" style="position:fixed; bottom:0; right:0; background:#16213e; padding:8px 12px; border-radius:8px 0 0 0; align-items:center; gap:8px; z-index:9999; display:none;">
+  <input id="find-input" type="text" placeholder="Find in page... :3" style="padding:6px 10px; border-radius:6px; border:none; background:#0f3460; color:white; font-size:13px; outline:none; width:200px;"/>
+  <button class="nav-btn" id="find-prev">↑</button>
+  <button class="nav-btn" id="find-next">↓</button>
+  <button class="nav-btn" id="find-close">×</button>
+</div>
 </body>
 </html>

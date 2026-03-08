@@ -93,10 +93,19 @@
     const searchBar = document.getElementById('search-bar')
     const searchBtn = document.getElementById('search-btn')
 
+    function getEngine() {
+      const params = new URLSearchParams(window.location.search)
+      return decodeURIComponent(params.get('engine') || 'https://www.google.com/search?q=')
+    }
+
     function doSearch() {
-        const query = searchBar.value.trim()
-        if (!query) return
-        window.location.href = query.startsWith('http') ? query : 'search:' + query
+      const query = searchBar.value.trim()
+      if (!query) return
+      if (query.startsWith('http')) {
+        window.location.href = query
+        return
+      }
+      window.location.href = getEngine() + encodeURIComponent(query)
     }
 
     searchBtn.addEventListener('click', doSearch)
